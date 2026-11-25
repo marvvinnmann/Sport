@@ -23,8 +23,8 @@ from sportpred.betting.odds import devig, expected_value, implied_probability, m
 from sportpred.config import ModelSettings, load_model_settings
 from sportpred.data.football_data import AGGREGATE_BOOKMAKERS
 from sportpred.data.repository import (
+    ANCHOR_CHAIN,
     EXCHANGE_COMMISSION,
-    REFERENCE_CHAIN,
     drop_implausible_odds,
     load_matches,
     load_odds_long,
@@ -61,7 +61,7 @@ def _market_rows(odds: pd.DataFrame, match_id: int, market: str) -> pd.DataFrame
 
 def _fair_reference(rows: pd.DataFrame, market: str) -> tuple[dict, str | None]:
     sels = MARKET_SELECTIONS[market]
-    for book in REFERENCE_CHAIN:
+    for book in ANCHOR_CHAIN:
         r = rows[rows["bookmaker"] == book]
         if r.empty:
             continue

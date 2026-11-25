@@ -17,8 +17,13 @@ MATCH_COLS = ["id", "match_key", "league", "season", "date", "kickoff", "home_te
               "fthg", "ftag", "hthg", "htag", "hs", "as", "hst", "ast", "hc", "ac", "hy", "ay", "hr", "ar",
               "hxg", "axg", "referee", "data_label", "updated_at"]
 
-# Preference order for the "sharp" reference price used to judge the market and to measure CLV.
+# Preference order for the CLOSING reference price (used to measure closing line value). At kick-off
+# the exchange is liquid and its prices are sharp.
 REFERENCE_CHAIN = ["pinnacle", "betfair_exchange", "market_avg"]
+# Preference order for the PRE-CLOSING anchor used to value bets. Measured out-of-sample (see
+# docs/RESEARCH.md §5.4): the provider's Tue/Fri Betfair Exchange snapshot is a poor anchor (thin
+# liquidity, back-price only) while the de-vigged market average is nearly as good as Pinnacle.
+ANCHOR_CHAIN = ["pinnacle", "market_avg", "betfair_exchange"]
 EXCHANGE_COMMISSION = 0.02  # typical Betfair commission on net winnings (varies by account)
 
 
@@ -119,18 +124,18 @@ def add_reference_probabilities(df: pd.DataFrame, method: str = "power") -> pd.D
     """Add fair (margin-free) probabilities from the best available sharp price.
 
     ``ref_close_*``  closing reference (Pinnacle → Betfair Exchange → market average)
-    ``ref_pre_*``    pre-closing reference, same chain
+    ``ref_pre_*``    pre-closing anchor (Pinnacle → market average → Betfair Exchange)
     plus ``ref_close_source`` / ``ref_pre_source`` telling which bookmaker was used.
     """
     df = df.copy()
-    for stage, suffix in (("close", "_c"), ("pre", "")):
+    for stage, suffix, chain in (("close", "_c", REFERENCE_CHAIN), ("pre", "", ANCHOR_CHAIN)):
         for market, sels in (("1X2", ["H", "D", "A"]), ("OU", ["O", "U"])):
             names = [f"ref_{stage}_{s}" for s in sels]
             for n in names:
                 df[n] = np.nan
             src_col = f"ref_{stage}_source_{market}"
             df[src_col] = None
-            for book in REFERENCE_CHAIN:
+            for book in chain:
                 cols = [f"{book}{suffix}_{s}" for s in sels]
                 if not all(c in df.columns for c in cols):
                     continue

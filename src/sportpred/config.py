@@ -11,6 +11,7 @@ Two kinds of settings exist:
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -19,7 +20,20 @@ import yaml
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def _project_root() -> Path:
+    """Folder holding config/ and data/. Works for editable installs (the repo), regular installs
+    (e.g. inside Docker, where the package lives in site-packages) and an explicit SPORTPRED_HOME."""
+    env = os.environ.get("SPORTPRED_HOME")
+    if env:
+        return Path(env).resolve()
+    repo = Path(__file__).resolve().parents[2]
+    if (repo / "config" / "default_settings.yaml").exists():
+        return repo
+    return Path.cwd()
+
+
+PROJECT_ROOT = _project_root()
 DEFAULT_SETTINGS_FILE = PROJECT_ROOT / "config" / "default_settings.yaml"
 
 
@@ -79,7 +93,7 @@ class StakingSettings(BaseModel):
 class ModelSettings(BaseModel):
     """User-tunable settings. All money/odds values use decimal odds."""
 
-    leagues: list[str] = ["E0"]
+    leagues: list[str] = ["E0", "E1", "E2", "EC", "D1", "D2", "I1", "I2", "SP1", "SP2", "F1", "B1"]
     first_season: int = Field(2012, description="first season start year to download")
     markets: list[Literal["1X2", "OU25"]] = ["1X2", "OU25"]
     active_model: Literal["blend", "dixon_coles", "elo"] = "blend"

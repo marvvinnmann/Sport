@@ -19,7 +19,7 @@ data/*
 !data/.gitkeep
 
 # Generated reports that are large or machine-specific
-reports/*.csv
+reports/backtests/*.csv
 reports/backtests/
 
 # OS / editor
