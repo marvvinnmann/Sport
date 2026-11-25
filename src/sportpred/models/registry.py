@@ -8,10 +8,11 @@ from sportpred.models.dixon_coles import DixonColes
 from sportpred.models.elo_model import EloModel
 
 MODEL_DESCRIPTIONS = {
-    "dixon_coles": "Dixon-Coles Poisson model with time decay (1X2 + Over/Under). Default.",
+    "blend": "Blend: Dixon-Coles pooled with the sharp market price (1X2 + O/U). Default — best out-of-sample.",
+    "dixon_coles": "Dixon-Coles Poisson model with time decay (1X2 + Over/Under). Standalone.",
     "elo": "Elo ratings + ordered logistic link (1X2 only). Transparent baseline.",
     "gbm": "LightGBM on pre-match features incl. Elo, Dixon-Coles, form, shots, rest days (1X2 + O/U).",
-    "ensemble": "Average of Dixon-Coles, Elo and GBM with calibration (1X2 + O/U).",
+    "ensemble": "Log-linear pool of Dixon-Coles, Elo, GBM and the market (walk-forward evaluation only).",
 }
 
 

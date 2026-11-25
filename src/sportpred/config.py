@@ -82,11 +82,11 @@ class ModelSettings(BaseModel):
     leagues: list[str] = ["E0"]
     first_season: int = Field(2012, description="first season start year to download")
     markets: list[Literal["1X2", "OU25"]] = ["1X2", "OU25"]
-    active_model: Literal["dixon_coles", "elo", "gbm", "ensemble"] = "dixon_coles"
+    active_model: Literal["blend", "dixon_coles", "elo"] = "blend"
 
     # Value-bet thresholds
-    min_ev: float = Field(0.04, description="minimum expected value per unit stake")
-    min_edge: float = Field(0.02, description="minimum model prob minus implied prob")
+    min_ev: float = Field(0.03, description="minimum expected value per unit stake")
+    min_edge: float = Field(0.01, description="minimum model prob minus implied prob")
     min_odds: float = 1.5
     max_odds: float = 5.0
     min_confidence: Literal["low", "medium", "high"] = "medium"
@@ -106,6 +106,14 @@ class ModelSettings(BaseModel):
 
     # Retraining
     retrain_every_days: int = 7
+
+    # Log-linear pooling weights for the 'blend' model: sources = [Dixon-Coles, sharp market].
+    # Fallback values estimated out-of-sample (2015-2026, 20 leagues); `sportpred evaluate`
+    # re-estimates them and the newest estimate is used automatically.
+    blend_weights: dict = Field(default_factory=lambda: {
+        "1X2": {"weights": [-0.069, 1.099], "bias": [0.0, 0.038, 0.009]},
+        "OU25": {"weights": [-0.043, 1.060], "bias": 0.010},
+    })
 
     staking: StakingSettings = StakingSettings()
 

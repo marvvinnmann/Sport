@@ -42,6 +42,10 @@ PRICE_FIELD = {"H": "price_home", "D": "price_draw", "A": "price_away", "OVER": 
 PROB_FIELD = {"H": "p_H", "D": "p_D", "A": "p_A", "OVER": "p_OVER", "UNDER": "p_UNDER"}
 CONF_ORDER = {"low": 0, "medium": 1, "high": 2}
 MAX_MARKET_DISAGREEMENT = 0.12  # model − fair market prob above this => probably missing information
+# Median absolute move of the sharp fair probability between the provider's pre-closing snapshot and
+# kick-off, measured on 53,459 matches (2019-2026). Used as the minimum uncertainty band for the
+# market-anchored blend: the price we anchor to is itself only an estimate of the final price.
+MARKET_MOVE_BAND = {"H": 0.020, "D": 0.009, "A": 0.017, "OVER": 0.018, "UNDER": 0.018}
 
 
 def _latest_preclosing_odds(odds: pd.DataFrame) -> pd.DataFrame:
@@ -191,9 +195,11 @@ def predict_fixtures(fin: pd.DataFrame, fixtures: pd.DataFrame, odds: pd.DataFra
                     prices = [r[PRICE_FIELD[s]] for s in sels]
                     if all(pd.notna(x) for x in prices):
                         margins.append(float(margin([np.array([x]) for x in prices])[0]))
+                probs, model_used, model_note = _market_probabilities(p, ep, market, fair, ms)
+                if probs is None:
+                    continue
                 for s in sels:
-                    prob = float(p[PROB_FIELD[s]])
-                    low, high = float(p[f"{PROB_FIELD[s]}_low"]), float(p[f"{PROB_FIELD[s]}_high"])
+                    prob, low, high = probs[s]
                     best_odds, best_book = None, None
                     book_prices = {}
                     for _, r in real.iterrows():
@@ -204,7 +210,8 @@ def predict_fixtures(fin: pd.DataFrame, fixtures: pd.DataFrame, odds: pd.DataFra
                         book_prices[r["bookmaker"]] = round(float(price), 3)
                         if best_odds is None or eff > best_odds:
                             best_odds, best_book = float(eff), r["bookmaker"]
-                    conf, conf_notes = _confidence(high - low, n_min, unseen, odds_age_h, ms)
+                    width = (high - low) if low is not None and high is not None else None
+                    conf, conf_notes = _confidence(width, n_min, unseen, odds_age_h, ms)
                     sel = {
                         "match_id": int(f["id"]), "league": league, "date": f["date"], "kickoff": f.get("kickoff"),
                         "home_team": f["home_team"], "away_team": f["away_team"], "market": market, "selection": s,
@@ -217,15 +224,19 @@ def predict_fixtures(fin: pd.DataFrame, fixtures: pd.DataFrame, odds: pd.DataFra
                         sel["implied_prob"] = float(implied_probability(best_odds))
                         sel["edge"] = prob - sel["implied_prob"]
                         sel["ev"] = float(expected_value(prob, best_odds))
-                        sel["ev_low"] = float(expected_value(low, best_odds))
+                        sel["ev_low"] = float(expected_value(low, best_odds)) if low is not None else None
                     else:
                         sel.update(implied_prob=None, edge=None, ev=None, ev_low=None)
                     verdict, reasons = classify(sel, ms)
+                    if model_note:
+                        reasons = [*reasons, model_note]
+                        if verdict == "value" and model_used != ms.active_model:
+                            verdict = "insufficient_evidence"
                     sel["verdict"] = verdict
                     sel["details"] = {
                         "reasons": [r for r in reasons if r], "confidence_notes": conf_notes, "missing_info": missing,
                         "explanation": explanation, "bookmaker_prices": book_prices,
-                        "model": ms.active_model if ms.active_model in ("dixon_coles", "elo") else "dixon_coles",
+                        "model": model_used, "dixon_coles_prob": float(p[PROB_FIELD[s]]),
                     }
                     rows.append(sel)
     out = pd.DataFrame(rows)
@@ -237,24 +248,67 @@ def predict_fixtures(fin: pd.DataFrame, fixtures: pd.DataFrame, odds: pd.DataFra
     if not val.empty:
         best_idx = val.sort_values("ev", ascending=False).groupby(["match_id", "market"]).head(1).index
         out.loc[best_idx, "is_recommended"] = True
-    if ms.active_model == "elo":
-        out = _apply_elo_override(out)
     return out, model_info
 
 
-def _apply_elo_override(out: pd.DataFrame) -> pd.DataFrame:
-    """When Elo is the active model, use its 1X2 probabilities (no intervals) and drop O/U."""
-    out = out[out["market"] == "1X2"].copy()
-    for i, r in out.iterrows():
-        ep = r["details"]["explanation"]["elo_probs"][r["selection"]]
-        out.at[i, "prob"] = ep
-        out.at[i, "prob_low"] = np.nan
-        out.at[i, "prob_high"] = np.nan
-        if r["best_odds"]:
-            out.at[i, "edge"] = ep - r["implied_prob"]
-            out.at[i, "ev"] = ep * r["best_odds"] - 1
-            out.at[i, "ev_low"] = None
-    return out
+def blend_params(ms: ModelSettings) -> dict:
+    """Newest pooling weights from the last walk-forward evaluation, else the shipped defaults."""
+    try:
+        from sportpred.services.evaluation import latest_pool_params
+
+        fitted = latest_pool_params("blend")
+    except Exception:  # pragma: no cover - evaluation files unreadable
+        fitted = None
+    return fitted or ms.blend_weights
+
+
+def _market_probabilities(p: pd.Series, ep: pd.Series, market: str, fair: dict, ms: ModelSettings):
+    """Probabilities (point, low, high) per selection for the active model.
+
+    Returns (probs, model_used, note). ``probs`` is None when the active model does not cover the market.
+    """
+    from sportpred.models.blend import apply_log_pool_binary, apply_log_pool_multiclass
+
+    sels = MARKET_SELECTIONS[market]
+    dc = {s: (float(p[PROB_FIELD[s]]), float(p[f"{PROB_FIELD[s]}_low"]), float(p[f"{PROB_FIELD[s]}_high"]))
+          for s in sels}
+    if ms.active_model == "elo":
+        if market != "1X2":
+            return None, "elo", None
+        return {s: (float(ep[PROB_FIELD[s]]), None, None) for s in sels}, "elo", None
+    if ms.active_model == "dixon_coles":
+        return dc, "dixon_coles", None
+    # blend: Dixon-Coles pooled with the sharp market's fair probabilities
+    if len(fair) != len(sels):
+        return dc, "dixon_coles", ("no sharp reference price available, so the market blend could not be "
+                                   "computed (Dixon-Coles shown; not eligible as a value bet)")
+    prm = blend_params(ms).get(market)
+    if not prm:
+        return dc, "dixon_coles", "blend weights missing for this market"
+    fair_vec = np.array([[fair[s] for s in sels]])
+    out = {}
+    if market == "1X2":
+        def pooled(vec):
+            return apply_log_pool_multiclass([np.array([vec]), fair_vec], prm)[0]
+        point = pooled([dc[s][0] for s in sels])
+        for i, s in enumerate(sels):
+            ends = []
+            for bound in (dc[s][1], dc[s][2]):  # move selection s to its bound, rescale the others
+                rest = 1 - dc[s][0]
+                vec = [bound if j == i else dc[t][0] * (1 - bound) / rest for j, t in enumerate(sels)]
+                ends.append(pooled(vec)[i])
+            band = MARKET_MOVE_BAND[s]
+            out[s] = (float(point[i]), float(min(min(ends), point[i] - band)), float(max(max(ends), point[i] + band)))
+    else:
+        f_over = np.array([fair["OVER"]])
+        def pooled_over(x):
+            return float(apply_log_pool_binary([np.array([x]), f_over], prm)[0])
+        po = pooled_over(dc["OVER"][0])
+        lo, hi = sorted([pooled_over(dc["OVER"][1]), pooled_over(dc["OVER"][2])])
+        lo, hi = min(lo, po - MARKET_MOVE_BAND["OVER"]), max(hi, po + MARKET_MOVE_BAND["OVER"])
+        out["OVER"] = (po, lo, hi)
+        out["UNDER"] = (1 - po, 1 - hi, 1 - lo)
+    return out, "blend", None
 
 
 def _empty_row(f, market, s, verdict, reasons) -> dict:

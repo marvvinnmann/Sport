@@ -1,0 +1,54 @@
+# docker compose up -d       -> dashboard on http://localhost:8501, API on http://localhost:8000/docs
+# First run: docker compose run --rm scheduler sportpred update   (downloads history, ~10-15 min)
+#
+# Uses PostgreSQL. To keep the simple SQLite file instead, delete the `db` service and the
+# SPORTPRED_DATABASE_URL lines below.
+
+x-app: &app
+  build: .
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    SPORTPRED_DATABASE_URL: postgresql+psycopg://sportpred:sportpred@db:5432/sportpred
+    SPORTPRED_DATA_DIR: /app/data
+  volumes:
+    - ./data:/app/data
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sportpred
+      POSTGRES_PASSWORD: sportpred   # local only; change if the port is ever exposed
+      POSTGRES_DB: sportpred
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sportpred"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  dashboard:
+    <<: *app
+    ports:
+      - "127.0.0.1:8501:8501"
+
+  api:
+    <<: *app
+    command: ["uvicorn", "sportpred.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  scheduler:
+    <<: *app
+    # update data, settle paper bets, predict and write a report every 12 hours
+    command: ["sportpred", "schedule", "--every-hours", "12"]
+
+volumes:
+  pgdata:

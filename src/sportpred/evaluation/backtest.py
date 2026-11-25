@@ -32,7 +32,7 @@ from sportpred.evaluation.metrics import bootstrap_mean_ci, longest_losing_strea
 SELECTIONS = {"1X2": ["H", "D", "A"], "OU25": ["O", "U"]}
 PROB_COL = {"H": "p_H", "D": "p_D", "A": "p_A", "O": "p_OVER", "U": "p_UNDER"}
 REF_COL = {"H": "ref_close_H", "D": "ref_close_D", "A": "ref_close_A", "O": "ref_close_O", "U": "ref_close_U"}
-PRICE_SOURCES = ["pinnacle", "bet365", "market_avg", "best_book", "market_max", "betfair_exchange"]
+PRICE_SOURCES = ["best_book", "market_avg", "pinnacle", "bet365", "market_max", "betfair_exchange"]
 
 
 @dataclass
@@ -211,23 +211,25 @@ def baseline_strategies(df: pd.DataFrame, cfg: BacktestConfig, n_random: int = 2
     dog = np.where(valid, np.nanargmax(np.where(np.isfinite(P), P, -np.inf), axis=1), -1)
     add("Back the favourite", {s: fav == i for i, s in enumerate(sels)})
     add("Back the outsider", {s: dog == i for i, s in enumerate(sels)})
-    # random selections inside the same odds band as the strategy
+    # random selections inside the same odds band as the strategy (vectorised)
     rng = np.random.default_rng(seed)
     band = (P >= cfg.min_odds) & (P <= cfg.max_odds) & np.isfinite(P)
     W = np.column_stack([won[s] for s in sels])
+    has = band.any(axis=1)
     rand_yields = []
-    for _ in range(n_random):
-        choice = np.array([rng.choice(np.where(b)[0]) if b.any() else -1 for b in band])
-        ok = choice >= 0
-        if ok.sum() == 0:
-            break
-        p = P[ok, choice[ok]]
-        w = W[ok, choice[ok]]
-        rand_yields.append(np.where(w, p - 1, -1).mean())
+    if has.any():
+        Pb, Wb, Bb = P[has], W[has], band[has]
+        rows_ix = np.arange(len(Pb))
+        for _ in range(n_random):
+            keys = np.where(Bb, rng.random(Bb.shape), -1.0)
+            choice = keys.argmax(axis=1)
+            p = Pb[rows_ix, choice]
+            w = Wb[rows_ix, choice]
+            rand_yields.append(float(np.where(w, p - 1, -1).mean()))
     if rand_yields:
         rows.append({"strategy": f"Random pick in odds band {cfg.min_odds}-{cfg.max_odds} (avg of {len(rand_yields)})",
-                     "n_bets": int(band.any(axis=1).sum()), "flat_yield": float(np.mean(rand_yields)),
-                     "profit_units": float(np.mean(rand_yields) * band.any(axis=1).sum())})
+                     "n_bets": int(has.sum()), "flat_yield": float(np.mean(rand_yields)),
+                     "profit_units": float(np.mean(rand_yields) * has.sum())})
     return pd.DataFrame(rows)
 
 
