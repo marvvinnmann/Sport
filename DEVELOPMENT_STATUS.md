@@ -63,8 +63,6 @@ Test suite: **56 tests passing** (`pytest`), lint clean (`ruff`).
 * `backtest_runs` table exists but backtests are not yet saved to it (results are shown, downloadable as CSV).
 * The Docker image has not been built successfully yet (the development sandbox blocks internet access
   inside build containers). Run `docker compose build` on your machine and report any error.
-* Changes are committed locally on branch `claude/sports-betting-prediction-app-loi862`; pushing to
-  GitHub failed in session 1 (the Claude GitHub App has no access to the repository yet).
 * The dashboard caches data for 60 s; after an update use the ⋮ menu → *Clear cache* or wait a minute.
 
 ## How the cloud development environment is set up
@@ -73,8 +71,16 @@ Claude Code cloud sessions for this repo should use the personal environment **"
 session 1). It allows `football-data.co.uk` and `www.football-data.co.uk` plus package registries.
 The Default environment blocks football-data.co.uk.
 
+## GitHub workflow
+
+* `main` is the default branch and holds the reviewed code.
+* New work happens on a separate branch and reaches `main` through a pull request, so every change
+  can be reviewed before it lands.
+* Every push and pull request runs the CI checks (`ruff` + the full `pytest` suite,
+  `.github/workflows/ci.yml`). Merge only when they pass.
+
 ## Session log
 
 | Session | Date | Summary |
 |---|---|---|
-| 1 | 2026-11-25 | Research, full MVP + Phase 3 models, 20-league walk-forward screening, dashboard, API, tests, docs |
+| 1 | 2026-11-25 | Research, full MVP + Phase 3 models, 20-league walk-forward screening, dashboard, API, tests, docs. GitHub access connected; code published to `main`; CI passing |
