@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets — never commit real keys
+.env
+*.key
+
+# Local data (downloaded raw files, database, user settings, model files).
+# Raw provider data is not redistributed in this repository.
+data/*
+!data/.gitkeep
+
+# Generated reports that are large or machine-specific
+reports/*.csv
+reports/backtests/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
