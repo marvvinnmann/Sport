@@ -37,7 +37,7 @@ Phases follow the original project brief. ✅ done · 🟡 partly done · ⬜ no
 - ⬜ Odds table compaction (the full 20-league research database is ~0.5 GB in SQLite)
 
 ## Research backlog (ordered by expected value of information)
-1. **Paper-trade the blend for ≥ 3 months** and compare its CLV with the backtest. This is the only
+1. **Paper-trade the market-consensus model for ≥ 3 months** and compare its CLV with the backtest. This is the only
    test that cannot be affected by look-ahead or selection bias.
 2. **Sharper anchor price.** The edge in backtests depends on the anchor (Pinnacle ≫ market average ≫
    Betfair snapshot). Evaluate a paid sharp feed or exchange mid-prices before spending real money.

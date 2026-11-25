@@ -35,7 +35,7 @@ PRICE_HELP = {"market_avg": "Average bookmaker price (conservative, realistic)",
 with st.form("bt"):
     c1, c2, c3 = st.columns(3)
     model = c1.selectbox("Model", models, format_func=lambda m: MODEL_LABEL.get(m, m),
-                         index=models.index("blend") if "blend" in models else 0)
+                         index=models.index("market") if "market" in models else 0)
     df_all = load_wf(model, wf_mtime(model))
     market = c2.selectbox("Market", ["1X2", "OU25"], format_func=lambda m: {"1X2": "Match result", "OU25": "Over/Under 2.5"}[m])
     price = c3.selectbox("Bet at prices from", PRICE_SOURCES, format_func=lambda s: PRICE_HELP[s])
@@ -181,7 +181,15 @@ if st.button("Run simulation"):
     rows = [{"Assumption": "Model probabilities are correct", **{k: v for k, v in a.items() if k != "finals"}}]
     if b:
         rows.append({"Assumption": "Closing market is correct", **{k: v for k, v in b.items() if k != "finals"}})
-    st.dataframe(pd.DataFrame(rows).round(3), hide_index=True, width="stretch")
+    mc = pd.DataFrame(rows)
+    mc_table = pd.DataFrame({
+        "Assumption": mc["Assumption"], "Simulations": mc["n_sims"],
+        "Median final bankroll": mc["median_final"].round(0), "Worst 5%": mc["p5_final"].round(0),
+        "Best 5%": mc["p95_final"].round(0), "Chance of profit": mc["prob_profit"].map(pct),
+        "Chance of losing half": mc["prob_lose_half"].map(pct), "Chance of ruin": mc["prob_ruin"].map(pct),
+        "Median worst drawdown": (mc["median_max_drawdown_pct"] / 100).map(lambda x: pct(x, digits=0)),
+    })
+    st.dataframe(mc_table, hide_index=True, width="stretch")
     fig = go.Figure()
     fig.add_trace(go.Histogram(x=a["finals"], name="If the model is right", marker_color=SERIES[0], opacity=0.7, nbinsx=40))
     if b:

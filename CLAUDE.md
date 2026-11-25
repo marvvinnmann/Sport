@@ -5,8 +5,8 @@ and Cursor. Read `DEVELOPMENT_STATUS.md` first — it says what is done, what is
 
 ## Project in one paragraph
 `sportpred` is a football (soccer) prediction and value-bet **research** platform. It downloads free
-results/odds from football-data.co.uk, fits probability models (Dixon-Coles, Elo, LightGBM, and a
-market blend), validates them walk-forward against bookmaker closing prices, and shows predictions,
+results/odds from football-data.co.uk, fits probability models (Dixon-Coles, Elo, LightGBM, a
+market blend and the default market-consensus model), validates them walk-forward against bookmaker closing prices, and shows predictions,
 backtests and paper-trading results in a Streamlit dashboard and a FastAPI API. It never places bets.
 
 ## Commands

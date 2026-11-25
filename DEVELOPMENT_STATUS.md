@@ -26,20 +26,20 @@ sportpred update → sportpred evaluate → sportpred predict → streamlit run 
 | Models | LightGBM challenger; log-linear pooling (blend, ensemble) | walk-forward on 20 leagues |
 | Validation | walk-forward engine with leakage guard; future-poisoning test | `test_walk_forward_has_no_lookahead` |
 | Validation | metrics (log loss, Brier, RPS, ECE, calibration table, bootstrap CIs, paired comparison) | tests |
-| Betting | backtest (price sources, CLV, baselines, EV sensitivity), staking (flat/fractional Kelly + caps), Monte Carlo | tests + dashboard |
+| Betting | backtest (price sources, CLV, baselines, EV sensitivity), staking (flat/fractional Kelly + caps, NumPy fast path), Monte Carlo (500 runs ≈ 8 s) | tests + dashboard (Playwright run) |
 | Live | predictions with verdicts (value / insufficient evidence / no bet), reasons, missing info, explanations; append-only storage; paper bets + settlement | end-to-end test + real run on 12 fixtures |
-| Live | **blend** model (Dixon-Coles + sharp market anchor), market-move uncertainty band | test + real run |
+| Live | **market consensus** (default) and **blend** models, market-move uncertainty band, anchor Pinnacle → market average → Exchange | tests + real run |
 | Apps | 7-page Streamlit dashboard | AppTest renders every page; Playwright screenshots with real data, 0 exceptions |
 | Apps | FastAPI (health, status, leagues, fixtures, predictions, detail, performance, paper bets, quality, calculator, backtest) | `test_api_endpoints` |
 | Ops | CLI, daily job + report, scheduler loop, backup script, CI workflow | CLI runs on real data |
-| Ops | Dockerfile + docker compose (PostgreSQL) | compose file validated, pip install of the package verified; **image build NOT tested** (sandbox blocked container network) |
-| Research | 20-league × 6-model screening, pooled backtests, CLV by season, anchor comparison | `reports/` |
+| Ops | Dockerfile + docker compose (PostgreSQL) | compose file validated; regular (non-editable) pip install verified incl. config discovery; **image build NOT completed** — the sandbox's build containers had no internet access |
+| Research | 20-league × 6-model screening, pooled backtests, CLV by season, anchor comparison (`scripts/research_tables.py`) | `reports/` |
 
-Test suite: **55 tests passing** (`pytest`), lint clean (`ruff`).
+Test suite: **56 tests passing** (`pytest`), lint clean (`ruff`).
 
 ## Next steps (in priority order)
 
-1. **Paper trade** for at least 3 months with the default blend settings; review Model Performance →
+1. **Paper trade** for at least 3 months with the default market-consensus settings; review Model Performance →
    Paper trading weekly. Compare its CLV with the backtest (positive CLV is the go/no-go signal).
 2. Build and run the Docker image on a normal machine (`docker compose build && docker compose up`) and
    fix anything environment-specific.
@@ -61,7 +61,10 @@ Test suite: **55 tests passing** (`pytest`), lint clean (`ruff`).
 * **Database size:** the full 20-league research database is ~0.5 GB in SQLite (odds table). The
   default 12-league install is smaller. Compaction is on the roadmap.
 * `backtest_runs` table exists but backtests are not yet saved to it (results are shown, downloadable as CSV).
-* The Docker image has not been built in the development sandbox (no container network there).
+* The Docker image has not been built successfully yet (the development sandbox blocks internet access
+  inside build containers). Run `docker compose build` on your machine and report any error.
+* Changes are committed locally on branch `claude/sports-betting-prediction-app-loi862`; pushing to
+  GitHub failed in session 1 (the Claude GitHub App has no access to the repository yet).
 * The dashboard caches data for 60 s; after an update use the ⋮ menu → *Clear cache* or wait a minute.
 
 ## How the cloud development environment is set up

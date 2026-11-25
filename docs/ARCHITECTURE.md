@@ -21,7 +21,7 @@ flowchart LR
 
     subgraph Engine["Prediction engine"]
         FE["Features<br/>Elo · form · rest"]
-        MO["Models<br/>Dixon-Coles · Elo · GBM · blend"]
+        MO["Models<br/>market consensus · blend<br/>Dixon-Coles · Elo · GBM"]
         VB["Value rules<br/>EV · edge · confidence · robustness"]
         WF["Walk-forward evaluation<br/>+ backtests"]
     end
@@ -126,8 +126,10 @@ data/                  local only: database, raw downloads, walk-forward files (
 1. `update`: download current-season files + `fixtures.csv`; unchanged files are skipped (hash check).
 2. For each league with upcoming fixtures: fit Dixon-Coles on finished matches **before today**
    (+30 Bayesian-bootstrap refits for uncertainty), fit Elo (second opinion).
-3. Take the latest pre-closing odds; compute the sharp anchor (Pinnacle → market average → Exchange),
-   de-vig it, and pool it with Dixon-Coles using the out-of-sample blend weights.
+3. Take the latest pre-closing odds; compute the sharp anchor (Pinnacle → market average → Exchange)
+   and remove its margin. With the default **market** model this fair probability is the estimate
+   (uncertainty band = typical pre-close price move); with **blend** it is pooled with Dixon-Coles
+   using the out-of-sample weights.
 4. For every selection: best real bookmaker price, implied probability, edge, EV, EV at the low end
    of the uncertainty band, confidence → verdict (`value` / `insufficient_evidence` / `no_bet`).
 5. Store predictions (append-only), log paper bets for recommended selections, write the daily report.

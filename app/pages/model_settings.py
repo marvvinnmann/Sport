@@ -10,15 +10,16 @@ from sportpred.models.registry import MODEL_DESCRIPTIONS
 setup_page("Model Settings", "🎛️")
 ms = load_model_settings()
 
-LIVE_MODELS = ["blend", "dixon_coles", "elo"]  # models available for live predictions
+LIVE_MODELS = ["market", "blend", "dixon_coles", "elo"]  # models available for live predictions
 
 with st.form("settings"):
     st.subheader("Model")
     active = st.selectbox("Active model for live predictions", LIVE_MODELS, index=LIVE_MODELS.index(ms.active_model)
                           if ms.active_model in LIVE_MODELS else 0, format_func=lambda m: MODEL_DESCRIPTIONS[m])
     st.caption("Gradient boosting and the ensemble are evaluated in walk-forward tests (Model Performance page). "
-               "See docs/MODEL_CARD.md for why the market blend is the live default: standalone models lost money "
-               "out-of-sample.")
+               "Why market consensus is the default: in 53,000 out-of-sample matches standalone models lost money, "
+               "while betting the best bookmaker price above the sharp consensus had positive closing line value "
+               "in every season (docs/RESEARCH.md).")
 
     st.subheader("Supported sports, leagues and markets")
     c1, c2 = st.columns([3, 1])

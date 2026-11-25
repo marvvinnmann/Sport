@@ -8,7 +8,9 @@ from sportpred.models.dixon_coles import DixonColes
 from sportpred.models.elo_model import EloModel
 
 MODEL_DESCRIPTIONS = {
-    "blend": "Blend: Dixon-Coles pooled with the sharp market price (1X2 + O/U). Default — best out-of-sample.",
+    "market": "Market consensus: de-vigged sharp price; value = a bookmaker pricing above it (1X2 + O/U). "
+              "Default — best out-of-sample betting value.",
+    "blend": "Blend: Dixon-Coles pooled with the sharp market price (1X2 + O/U). Best log loss, weaker CLV.",
     "dixon_coles": "Dixon-Coles Poisson model with time decay (1X2 + Over/Under). Standalone.",
     "elo": "Elo ratings + ordered logistic link (1X2 only). Transparent baseline.",
     "gbm": "LightGBM on pre-match features incl. Elo, Dixon-Coles, form, shots, rest days (1X2 + O/U).",

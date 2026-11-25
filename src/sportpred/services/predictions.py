@@ -237,6 +237,7 @@ def predict_fixtures(fin: pd.DataFrame, fixtures: pd.DataFrame, odds: pd.DataFra
                         "reasons": [r for r in reasons if r], "confidence_notes": conf_notes, "missing_info": missing,
                         "explanation": explanation, "bookmaker_prices": book_prices,
                         "model": model_used, "dixon_coles_prob": float(p[PROB_FIELD[s]]),
+                        "reference_bookmaker": ref_book,
                     }
                     rows.append(sel)
     out = pd.DataFrame(rows)
@@ -278,6 +279,14 @@ def _market_probabilities(p: pd.Series, ep: pd.Series, market: str, fair: dict, 
         return {s: (float(ep[PROB_FIELD[s]]), None, None) for s in sels}, "elo", None
     if ms.active_model == "dixon_coles":
         return dc, "dixon_coles", None
+    if ms.active_model == "market":
+        # market consensus: the de-vigged sharp anchor price IS the probability estimate; value can only
+        # come from a bookmaker pricing above it. Band = typical pre-close move of that price.
+        if len(fair) != len(sels):
+            return dc, "dixon_coles", ("no sharp reference price available, so the market consensus could "
+                                       "not be computed (Dixon-Coles shown; not eligible as a value bet)")
+        return ({s: (fair[s], max(fair[s] - MARKET_MOVE_BAND[s], 0.0), min(fair[s] + MARKET_MOVE_BAND[s], 1.0))
+                 for s in sels}, "market", None)
     # blend: Dixon-Coles pooled with the sharp market's fair probabilities
     if len(fair) != len(sels):
         return dc, "dixon_coles", ("no sharp reference price available, so the market blend could not be "

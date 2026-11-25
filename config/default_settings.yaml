@@ -2,10 +2,10 @@
 # data/user_settings.yaml and override these values. See docs/MODEL_CARD.md for the reasoning.
 
 # Leagues (football-data.co.uk codes). Chosen from the league screening in docs/RESEARCH.md.
-leagues: [E0, E1, E2, EC, D1, D2, I1, I2, SP1, SP2, F1, B1]
+leagues: [E0, E1, E2, E3, EC, D1, D2, I1, I2, SP1, SP2, B1]
 first_season: 2012
 markets: ["1X2", "OU25"]
-active_model: blend      # Dixon-Coles pooled with the sharp market price (best out-of-sample)
+active_model: market     # market consensus: best out-of-sample betting value (docs/RESEARCH.md §5)
 
 # A selection is flagged as positive expected value only if ALL of these hold.
 min_ev: 0.03            # at least +3% expected value per unit staked
@@ -28,8 +28,8 @@ retrain_every_days: 7
 # Pooling weights for the blend [Dixon-Coles, sharp market]. Estimated out-of-sample on 2015-2026
 # data (see reports/league_screening.md). Newer estimates from `sportpred evaluate` take precedence.
 blend_weights:
-  "1X2": {weights: [-0.069, 1.099], bias: [0.0, 0.038, 0.009]}
-  "OU25": {weights: [-0.043, 1.060], bias: 0.010}
+  "1X2": {weights: [-0.080, 1.109], bias: [0.0, 0.040, 0.010]}
+  "OU25": {weights: [-0.049, 1.065], bias: 0.010}
 
 staking:
   method: flat

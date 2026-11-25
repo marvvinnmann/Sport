@@ -96,16 +96,39 @@ def test_blend_probabilities_are_market_anchored():
                    "p_OVER_high": 0.7, "p_UNDER": 0.4, "p_UNDER_low": 0.3, "p_UNDER_high": 0.5})
     ep = pd.Series({"p_H": 0.5, "p_D": 0.27, "p_A": 0.23})
     fair = {"H": 0.45, "D": 0.28, "A": 0.27}
-    probs, model, note = _market_probabilities(p, ep, "1X2", fair, ModelSettings())
+    blend = ModelSettings(active_model="blend")
+    probs, model, note = _market_probabilities(p, ep, "1X2", fair, blend)
     assert model == "blend" and note is None
     assert sum(v[0] for v in probs.values()) == pytest.approx(1.0)
     for s, (pt, lo, hi) in probs.items():
         assert lo <= pt <= hi
         assert abs(pt - fair[s]) < 0.03  # anchored to the market, not to the 55% model view
-    ou, _, _ = _market_probabilities(p, ep, "OU25", {"OVER": 0.52, "UNDER": 0.48}, ModelSettings())
+    ou, _, _ = _market_probabilities(p, ep, "OU25", {"OVER": 0.52, "UNDER": 0.48}, blend)
     assert ou["OVER"][0] + ou["UNDER"][0] == pytest.approx(1.0)
     # without a sharp reference the blend falls back to Dixon-Coles and says so
-    probs, model, note = _market_probabilities(p, ep, "1X2", {}, ModelSettings())
+    probs, model, note = _market_probabilities(p, ep, "1X2", {}, blend)
     assert model == "dixon_coles" and "no sharp reference" in note
     # Elo covers 1X2 only
     assert _market_probabilities(p, ep, "OU25", fair, ModelSettings(active_model="elo"))[0] is None
+
+
+def test_market_consensus_model():
+    import pandas as pd
+
+    from sportpred.services.predictions import _market_probabilities, classify
+
+    p = pd.Series({"p_H": 0.55, "p_H_low": 0.45, "p_H_high": 0.65, "p_D": 0.25, "p_D_low": 0.2, "p_D_high": 0.3,
+                   "p_A": 0.20, "p_A_low": 0.15, "p_A_high": 0.27})
+    ms = ModelSettings(active_model="market")
+    fair = {"H": 0.45, "D": 0.28, "A": 0.27}
+    probs, model, _ = _market_probabilities(p, pd.Series(dtype=float), "1X2", fair, ms)
+    assert model == "market"
+    assert {s: v[0] for s, v in probs.items()} == fair
+    # a soft bookmaker at 2.40 on a 45% fair chance: EV +8%, low end (43%) still positive -> value
+    lo = probs["H"][1]
+    sel = {"best_odds": 2.40, "prob": 0.45, "ev": 0.45 * 2.4 - 1, "edge": 0.45 - 1 / 2.4, "ev_low": lo * 2.4 - 1,
+           "confidence": "high", "fair_prob": 0.45, "odds_age_h": 5}
+    assert classify(sel, ms)[0] == "value"
+    # the same selection at the fair price is never value
+    sel2 = {**sel, "best_odds": 1 / 0.45 * 1.0, "ev": 0.0, "edge": 0.0, "ev_low": lo / 0.45 - 1}
+    assert classify(sel2, ms)[0] == "no_bet"

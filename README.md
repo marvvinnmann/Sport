@@ -13,29 +13,30 @@ bookmakers' closing prices.
 
 * Downloads 15 seasons of results, match statistics and odds for 12 (up to 22) European leagues from
   football-data.co.uk — free, no key needed — plus upcoming fixtures with current odds.
-* Fits **Dixon-Coles**, **Elo**, **LightGBM** and a **market blend** model; predicts match result (1X2)
-  and over/under 2.5 goals with uncertainty ranges and plain-language explanations.
+* Fits **Dixon-Coles**, **Elo**, **LightGBM**, a **market blend** and a **market-consensus** model; predicts
+  match result (1X2) and over/under 2.5 goals with uncertainty ranges and plain-language explanations.
 * Classifies every selection as **Positive EV**, **Insufficient evidence** or **No bet** — it never forces a pick.
 * Backtests strategies on out-of-sample predictions with realistic prices, staking rules, drawdowns,
   closing line value (CLV), baselines and Monte Carlo simulation.
 * Logs paper bets automatically and settles them, so the model is also tested going forward.
-* 7-page dashboard (Streamlit), REST API (FastAPI), command line, Docker deployment, 55 automated tests.
+* 7-page dashboard (Streamlit), REST API (FastAPI), command line, Docker deployment, 56 automated tests.
 
-## Honest results (out-of-sample, 2019/20 → Nov 2026, 20 leagues, ~53,500 matches)
+## Honest results (out-of-sample, Jul 2019 → Nov 2026, 20 leagues, 53,459 matches)
 
-See [`docs/RESEARCH.md`](docs/RESEARCH.md) and [`reports/`](reports/) for full numbers.
+Full numbers: [`docs/RESEARCH.md`](docs/RESEARCH.md) and [`reports/`](reports/).
 
 1. **No model beats the closing market.** Every model's log loss is worse than the de-vigged closing
-   price with 95% confidence. Gradient boosting is the best standalone model; Dixon-Coles and Elo trail.
-2. **Betting on a standalone model's "value" loses money** (−3% to −11% yield, negative CLV). These
-   models disagree with the market far too often, and the market is usually right.
-3. **The only signal with positive CLV is market-anchored:** a bookmaker offering a price above the
-   sharp consensus (Pinnacle, or the de-vigged market average). This is price dispersion between
-   bookmakers, not better football prediction. Realised yields were positive but their confidence
-   intervals mostly include zero, and such strategies typically get accounts limited.
-4. Therefore the live default is the **blend** model (Dixon-Coles pooled with the sharp market price,
-   weights learned out-of-sample), with conservative thresholds. Treat its output as a research signal
-   to paper-trade, not as a proven money-maker.
+   price with 95% confidence. Gradient boosting is the best standalone model; Elo and Dixon-Coles trail.
+2. **Betting on a standalone model's "value" loses money:** −4% to −11% yield with negative closing line
+   value (CLV). The models disagree with the market far too often, and the market is usually right.
+3. **The only signal that holds up is market consensus.** It means taking a bookmaker's price when it is
+   higher than the sharp, margin-free consensus (Pinnacle, or the de-vigged market average). This had
+   **positive CLV in every season and every league** (+3.3% on average, 2,382 bets) and a realised yield
+   of +6.6% (95% CI +0.5% to +12.9%). That yield is borderline once you account for how many strategies
+   were tried. This is price dispersion between bookmakers, not better football prediction, and such
+   strategies tend to get accounts limited.
+4. So the live default is the **market-consensus** model, with Dixon-Coles and Elo shown as context.
+   Paper-trade it for at least 3 months before trusting it.
 
 ## Quick start (your computer)
 
@@ -69,12 +70,13 @@ and hosting: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 | `sportpred quality` | data quality report |
 | `sportpred import-csv FILE --label live/sample/simulated` | manual CSV import (football-data format) |
 | `sportpred evaluate` | walk-forward evaluation of all models vs the market |
-| `sportpred backtest --model blend --price-source best_book` | quick backtest in the terminal |
+| `sportpred backtest --model market --price-source best_book --min-ev 0.03` | quick backtest in the terminal |
 | `sportpred predict` | predictions for upcoming fixtures |
 | `sportpred settle` | settle paper bets |
 | `sportpred daily` | update → settle → predict → quality → report |
 | `sportpred serve-api` | REST API at http://127.0.0.1:8000/docs |
 | `python scripts/league_screening.py` | league × market × model screening report |
+| `python scripts/research_tables.py` | pooled backtests, CLV by season, anchor comparison |
 
 ## Dashboard pages
 

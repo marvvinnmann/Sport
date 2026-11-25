@@ -93,10 +93,10 @@ class StakingSettings(BaseModel):
 class ModelSettings(BaseModel):
     """User-tunable settings. All money/odds values use decimal odds."""
 
-    leagues: list[str] = ["E0", "E1", "E2", "EC", "D1", "D2", "I1", "I2", "SP1", "SP2", "F1", "B1"]
+    leagues: list[str] = ["E0", "E1", "E2", "E3", "EC", "D1", "D2", "I1", "I2", "SP1", "SP2", "B1"]
     first_season: int = Field(2012, description="first season start year to download")
     markets: list[Literal["1X2", "OU25"]] = ["1X2", "OU25"]
-    active_model: Literal["blend", "dixon_coles", "elo"] = "blend"
+    active_model: Literal["market", "blend", "dixon_coles", "elo"] = "market"
 
     # Value-bet thresholds
     min_ev: float = Field(0.03, description="minimum expected value per unit stake")
@@ -125,8 +125,8 @@ class ModelSettings(BaseModel):
     # Fallback values estimated out-of-sample (2015-2026, 20 leagues); `sportpred evaluate`
     # re-estimates them and the newest estimate is used automatically.
     blend_weights: dict = Field(default_factory=lambda: {
-        "1X2": {"weights": [-0.069, 1.099], "bias": [0.0, 0.038, 0.009]},
-        "OU25": {"weights": [-0.043, 1.060], "bias": 0.010},
+        "1X2": {"weights": [-0.080, 1.109], "bias": [0.0, 0.040, 0.010]},
+        "OU25": {"weights": [-0.049, 1.065], "bias": 0.010},
     })
 
     staking: StakingSettings = StakingSettings()

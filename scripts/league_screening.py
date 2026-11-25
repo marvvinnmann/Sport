@@ -34,7 +34,7 @@ from sportpred.services.evaluation import (  # noqa: E402
 )
 
 OUT = ROOT / "reports"
-MODELS = ["dixon_coles", "elo", "gbm", "blend", "ensemble"]
+MODELS = ["market", "dixon_coles", "elo", "gbm", "blend", "ensemble"]
 
 
 def margin_1x2(df: pd.DataFrame) -> float:

@@ -41,6 +41,17 @@ home, away = first["home_team"], first["away_team"]
 st.header(f"{home} v {away}")
 st.caption(f"{first['league_name']} · {first['date']:%A %d %B %Y} {first['kickoff'] or ''} (UK time) · "
            f"model trained on matches before this date")
+MODEL_EXPLAIN = {
+    "market": "Probabilities = the sharp market consensus ({ref}) with the bookmaker margin removed. A selection "
+              "can only be value when another bookmaker offers a higher price. Dixon-Coles and Elo below are a "
+              "second opinion, not the driver — out-of-sample they were less accurate than the market.",
+    "blend": "Probabilities = Dixon-Coles pooled with the sharp market consensus ({ref}), weights learned "
+             "out-of-sample. The market dominates the blend.",
+    "dixon_coles": "Probabilities = Dixon-Coles model only (standalone models lost money out-of-sample).",
+    "elo": "Probabilities = Elo model only (standalone models lost money out-of-sample).",
+}
+used = det.get("model", "dixon_coles")
+st.info(MODEL_EXPLAIN.get(used, used).format(ref=det.get("reference_bookmaker") or "sharp price"))
 
 # ---------------------------------------------------------------- probabilities and EV
 st.subheader("Model probability vs bookmaker odds")
